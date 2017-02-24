@@ -54,7 +54,7 @@ public class LinkToFieldAssociationImpl implements LinkToFieldAssociation {
     public LinkToFieldAssociationImpl(Transition transition, Map<String, Object> properties) {
         this.transition = transition;
         targetFieldName = transition.getSourceField();
-        transitionCollectionParams = getCollectionParams(transition.getCommand().getUriParameters());
+        transitionCollectionParams = getCollectionParams(transition);
         hasCollectionDynamicResourceName = hasCollectionDynamicResourceName();
         transitionProperties = properties;
         normalisedTransitionProperties = HypermediaTemplateHelper.normalizeProperties(properties);
@@ -68,13 +68,9 @@ public class LinkToFieldAssociationImpl implements LinkToFieldAssociation {
             return false;
         }
 
-        if (hasCollectionDynamicResourceName && !StringUtils.equals(getParentNameOfCollectionValue(targetFieldName), getFirstParentNameOfDynamicResource())){
+        String targetFieldParent = getParentNameOfCollectionValue(targetFieldName);
+        if (hasCollectionDynamicResourceName && targetFieldParent != null && !StringUtils.equals(targetFieldParent, getFirstParentNameOfDynamicResource())){
             logger.error("Cannot generate links for transition " + transition + ". Parent of target field name and dynamic resource must be same.");
-            return false;
-        }
-        
-        if(hasCollectionDynamicResourceName && !allParametersHaveSameParent(((DynamicResourceState) transition.getTarget()).getResourceLocatorArgs())){
-            logger.error("Cannot generate links for transition " + transition + ". All multivalue fields in the parameter list of the dynamic resource must have the same parent.");
             return false;
         }
 
@@ -236,8 +232,9 @@ public class LinkToFieldAssociationImpl implements LinkToFieldAssociation {
         return parent.substring(0, parent.lastIndexOf("("));        
     }
 
-    private List<String> getCollectionParams(Map<String, String> transitionUriMap) {
+    private List<String> getCollectionParams(Transition transition) {
         List<String> collectionParams = new ArrayList<String>();
+        Map<String, String> transitionUriMap = transition.getCommand().getUriParameters();  
         if (transitionUriMap == null) {
             return collectionParams;
         }
@@ -248,6 +245,17 @@ public class LinkToFieldAssociationImpl implements LinkToFieldAssociation {
             while (matcher.find()) {
                 collectionParams.add(matcher.group(1));
             }
+        }
+        
+        if (transition.getTarget() instanceof DynamicResourceState) {
+            String[] args = ArrayUtils.nullToEmpty(((DynamicResourceState) transition.getTarget()).getResourceLocatorArgs());
+        
+        for (String parameter : args) {
+            Matcher matcher = COLLECTION_PARAM_PATTERN.matcher(parameter);
+            while (matcher.find()) {
+                collectionParams.add(matcher.group(1));
+            }
+           }
         }
         return collectionParams;
     }
