@@ -74,11 +74,6 @@ public class LinkToFieldAssociationImpl implements LinkToFieldAssociation {
             return false;
         }
 
-        if (!transitionCollectionParams.isEmpty() && !allParametersHaveSameParent(transitionCollectionParams.toArray(new String[0]))) {
-            logger.error("Cannot generate links for transition " + transition + ". All collection parameters must have the same parent.");
-            return false;
-        }
-
         return true;
     }
 
@@ -157,17 +152,44 @@ public class LinkToFieldAssociationImpl implements LinkToFieldAssociation {
             transitionPropertiesList.add(linkProps);
         } else {
             int numOfChildren = getNumberOfMultivalueChildren();
-            String parentResolvedName = getParentOfMultivalueChildren();
-
-            // Create multiple properties maps per target. Depends on the number of children in the entity in transition properties
-            for (int i = 0; i <= numOfChildren; i++) {
-                String childParentResolvedParamNewIndex = parentResolvedName + "(" + i + ")";
-                LinkProperties linkProps = createLinkProperties(targetFieldName, null, childParamNames, childParentResolvedParamNewIndex);
-                transitionPropertiesList.add(linkProps);
+            
+            if(allParametersHaveSameParent(transitionCollectionParams.toArray(new String[0]))){
+                
+                String parentResolvedName = getParentOfMultivalueChildren();
+    
+                // Create multiple properties maps per target. Depends on the number of children in the entity in transition properties
+                for (int i = 0; i <= numOfChildren; i++) {
+                    String childParentResolvedParamNewIndex = parentResolvedName + "(" + i + ")";
+                    LinkProperties linkProps = createLinkProperties(targetFieldName, null, childParamNames, childParentResolvedParamNewIndex);
+                    transitionPropertiesList.add(linkProps);
+                }
+                
+            } else {
+                
+                for (int i = 0; i <= numOfChildren; i++) {
+                    LinkProperties linkProps = createMultiLinkProperties(targetFieldName, null, childParamNames, null,i);
+                    transitionPropertiesList.add(linkProps);
+                }
+      
             }
         }
     }
 
+    private LinkProperties createMultiLinkProperties(String targetField, List<String> resolvedDynamicResourceFieldNames, List<String> childParamNames, String resolvedParentName, int index){
+        
+        List<String> resolvedDynamicFileds = new ArrayList<String>();
+        
+        for(String collectionParam : transitionCollectionParams){
+            String parentName = getParentNameOfCollectionValue(collectionParam) + "(" + index + ")";
+            String childParam = getChildNameOfCollectionValue(collectionParam);
+            resolvedDynamicFileds.add(parentName+"."+childParam);        
+        }
+       
+        LinkProperties linkProps = createLinkProperties(targetFieldName, resolvedDynamicFileds, childParamNames, null);
+        return linkProps;
+        
+    }
+    
     private LinkProperties createLinkProperties(String targetField, List<String> resolvedDynamicResourceFieldNames, List<String> childParamNames, String resolvedParentName) {
         List<String> paramPropertyKeys = new ArrayList<String>();
         if (StringUtils.isNotBlank(resolvedParentName)) {
