@@ -49,7 +49,6 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 
-import com.temenos.interaction.core.workflow.WorkflowCommandBuilderFactory;
 import org.junit.Before;
 import org.junit.Test;
 import org.odata4j.core.OCollection;
@@ -85,6 +84,7 @@ import com.temenos.interaction.core.resource.EntityResource;
 import com.temenos.interaction.core.resource.RESTResource;
 import com.temenos.interaction.core.rim.HTTPHypermediaRIM;
 import com.temenos.interaction.core.web.RequestContext;
+import com.temenos.interaction.core.workflow.WorkflowCommandBuilderFactory;
 
 
 public class TestResourceStateMachine {
@@ -1807,7 +1807,7 @@ public class TestResourceStateMachine {
         assertEquals(2, links.size());
 
         assertTrue(containsLink(links, "Airport.airport>GET>Airport.airport", "/baseuri/Airports('123')"));
-        assertTrue(containsLink(links, "Airport.airport>GET>Flight.Flights", "/baseuri/Airports('123')/Flights?filter=arrivalAirportCode+eq+'123'"));
+        assertTrue(containsLink(links, "Airport.airport>GET>Flight.Flights", "/baseuri/Airports('123')/Flights?filter=arrivalAirportCode+eq+%27123%27"));
     }
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
@@ -1849,9 +1849,9 @@ public class TestResourceStateMachine {
         assertEquals("Airport.airport>GET>Airport.airport", sortedLinks.get(0).getId());
         assertEquals("/baseuri/Airports('123')", sortedLinks.get(0).getHref());
         assertEquals("Airport.airport>GET>Flight.Flights", sortedLinks.get(1).getId());
-        assertEquals("/baseuri/Flights()?$filter=arrivalAirportCode+eq+'London+Luton'", sortedLinks.get(1).getHref());
+        assertEquals("/baseuri/Flights()?$filter=arrivalAirportCode+eq+%27London+Luton%27", sortedLinks.get(1).getHref());
         assertEquals("Airport.airport>GET>Flight.Flights", sortedLinks.get(2).getId());
-        assertEquals("/baseuri/Flights()?$filter=departureAirportCode+eq+'London+Luton'", sortedLinks.get(2).getHref());
+        assertEquals("/baseuri/Flights()?$filter=departureAirportCode+eq+%27London+Luton%27", sortedLinks.get(2).getHref());
         assertEquals(3, links.size());
     }
 
@@ -1899,9 +1899,9 @@ public class TestResourceStateMachine {
 
         });
         assertEquals("Airports.airports>GET(arrival)>Flight.Flights", sortedLinks.get(0).getId());
-        assertEquals("/baseuri/Flights()?$filter=arrivalAirportCode+eq+'London+Luton'", sortedLinks.get(0).getHref());
+        assertEquals("/baseuri/Flights()?$filter=arrivalAirportCode+eq+%27London+Luton%27", sortedLinks.get(0).getHref());
         assertEquals("Airports.airports>GET(departure)>Flight.Flights", sortedLinks.get(1).getId());
-        assertEquals("/baseuri/Flights()?$filter=departureAirportCode+eq+'London+Luton'", sortedLinks.get(1).getHref());
+        assertEquals("/baseuri/Flights()?$filter=departureAirportCode+eq+%27London+Luton%27", sortedLinks.get(1).getHref());
         assertEquals(2, links.size());
     }
 
@@ -2504,8 +2504,8 @@ public class TestResourceStateMachine {
                 return o1.getHref().compareTo(o2.getHref());
             }
         });
-        assertEquals("/baseuri/contact()?filter=Id+eq+'johnEmailAddr'", sortedLinks.get(0).getHref());
-        assertEquals("/baseuri/contact()?filter=Id+eq+'smithEmailAddr'", sortedLinks.get(1).getHref());
+        assertEquals("/baseuri/contact()?filter=Id+eq+%27johnEmailAddr%27", sortedLinks.get(0).getHref());
+        assertEquals("/baseuri/contact()?filter=Id+eq+%27smithEmailAddr%27", sortedLinks.get(1).getHref());
         assertEquals(2, links.size());
     }
 
@@ -2562,8 +2562,8 @@ public class TestResourceStateMachine {
             }
         });
 
-        assertEquals("/baseuri/contact()?filter=Id+eq+'ABCD'", sortedLinks.get(0).getHref());
-        assertEquals("/baseuri/contact()?filter=Id+eq+'EFGH'", sortedLinks.get(1).getHref());
+        assertEquals("/baseuri/contact()?filter=Id+eq+%27ABCD%27", sortedLinks.get(0).getHref());
+        assertEquals("/baseuri/contact()?filter=Id+eq+%27EFGH%27", sortedLinks.get(1).getHref());
         assertEquals(2, links.size());
     }
 
@@ -2613,8 +2613,8 @@ public class TestResourceStateMachine {
                 return o1.getHref().compareTo(o2.getHref());
             }
         });
-        assertEquals("/baseuri/contact()?filter=Name+eq+John+and+Id+eq+'johnEmailAddr'", sortedLinks.get(0).getHref());
-        assertEquals("/baseuri/contact()?filter=Name+eq+John+and+Id+eq+'smithEmailAddr'", sortedLinks.get(1).getHref());
+        assertEquals("/baseuri/contact()?filter=Name+eq+John+and+Id+eq+%27johnEmailAddr%27", sortedLinks.get(0).getHref());
+        assertEquals("/baseuri/contact()?filter=Name+eq+John+and+Id+eq+%27smithEmailAddr%27", sortedLinks.get(1).getHref());
         assertEquals(2, links.size());
     }
 

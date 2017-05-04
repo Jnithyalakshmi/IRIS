@@ -100,12 +100,12 @@ public class LinkGeneratorImpl implements LinkGenerator {
                 return null;
             }
 
-            UriBuilder linkTemplate = UriBuilder.fromUri(RequestContext.getRequestContext().getBasePath());
+            UriBuilder uriBuilder = UriBuilder.fromUri(RequestContext.getRequestContext().getBasePath());
 
             if (targetState instanceof DynamicResourceState) {
-                return createLinkForDynamicResource(linkTemplate, linkProperties, targetState, entity);
+                return createLinkForDynamicResource(uriBuilder, linkProperties, targetState, entity);
             } else {
-                return createLinkForResource(linkTemplate, linkProperties, targetState, queryParameters, entity);
+                return createLinkForResource(uriBuilder, linkProperties, targetState, queryParameters, entity);
             }
         } catch (IllegalArgumentException e) {
             logger.warn("Dead link [" + transition + "]", e);
@@ -118,7 +118,8 @@ public class LinkGeneratorImpl implements LinkGenerator {
         }
     }
 
-    private void configureLink(UriBuilder linkTemplate, Map<String, Object> transitionProperties, String targetResourcePath) {
+    // IMPORTANT: Takes in all un-encoded transition properties encode before using to build the link
+    private void configureLink(UriBuilder uriBuilder, Map<String, Object> transitionProperties, String targetResourcePath) {
         // Pass uri parameters as query parameters if they are not
         // replaceable in the path, and replace any token.
         Map<String, String> uriParameters = transition.getCommand().getUriParameters();
@@ -130,7 +131,7 @@ public class LinkGeneratorImpl implements LinkGenerator {
                     try{
                         outQueryParams.add(param.getKey(), URLEncoder.encode(paramValue, "UTF-8"));
                     }catch(UnsupportedEncodingException uee){
-                        logger.error("ERROR unable to encode " + param.getKey(), uee);
+                        logger.warn("WARNING unable to encode " + param.getKey(), uee);
                     }
                 }
             }
@@ -142,7 +143,11 @@ public class LinkGeneratorImpl implements LinkGenerator {
                 if (!targetResourcePath.contains("{" + key + "}")) {
                     String paramValue = HypermediaTemplateHelper.templateReplace(value, transitionProperties);
                     if (paramValue != null) {
-                        outQueryParams.putSingle(key, paramValue);
+                        try{
+                            outQueryParams.putSingle(key, URLEncoder.encode(paramValue, "UTF-8"));
+                        }catch(UnsupportedEncodingException uee){
+                            logger.warn("WARNING unable to encode " + paramValue, uee);
+                        }
                     }
                 }
             }
@@ -150,7 +155,7 @@ public class LinkGeneratorImpl implements LinkGenerator {
         
         for (Map.Entry<String, List<String>> param : outQueryParams.entrySet()) {
             for(String paramValue: param.getValue()) {
-                linkTemplate.queryParam(param.getKey(), paramValue);
+                uriBuilder.queryParam(param.getKey(), paramValue);
             }
         }
     }
@@ -174,17 +179,17 @@ public class LinkGeneratorImpl implements LinkGenerator {
         return transition.getLabel() != null && !transition.getLabel().equals("") ? transition.getLabel() : transition.getTarget().getName();
     }
 
-    private void addQueryParams(MultivaluedMap<String, String> queryParameters, boolean allQueryParameters, UriBuilder linkTemplate, String targetResourcePath, Map<String, String> uriParameters) {
+    private void addQueryParams(MultivaluedMap<String, String> queryParameters, boolean allQueryParameters, UriBuilder uriBuilder, String targetResourcePath, Map<String, String> uriParameters) {
         if (queryParameters != null && allQueryParameters) {
             for (String param : queryParameters.keySet()) {
                 if (!targetResourcePath.contains("{" + param + "}") && (uriParameters == null || !uriParameters.containsKey(param))) {
-                    linkTemplate.queryParam(param, queryParameters.getFirst(param));
+                    uriBuilder.queryParam(param, queryParameters.getFirst(param));
                 }
             }
         }
     }
 
-    private Link createLinkForDynamicResource(UriBuilder linkTemplate, LinkProperties linkProperties, ResourceState targetState, Object entity) {
+    private Link createLinkForDynamicResource(UriBuilder uriBuilder, LinkProperties linkProperties, ResourceState targetState, Object entity) {
         // We are dealing with a dynamic target
         // Identify real target state
 
@@ -199,8 +204,8 @@ public class LinkGeneratorImpl implements LinkGenerator {
         }
 
         String targetPath = targetState.getPath();
-        configureLink(linkTemplate, linkPropertiesMap, targetPath);
-        linkTemplate.path(targetPath);
+        configureLink(uriBuilder, linkPropertiesMap, targetPath);
+        uriBuilder.path(targetPath);
         String rel = getTargetRelValue(targetState);
 
         String method = transition.getCommand().getMethod();
@@ -222,22 +227,22 @@ public class LinkGeneratorImpl implements LinkGenerator {
                 if ("id".equalsIgnoreCase(param)) {
                     linkPropertiesMap.put(param, value);
                     if(rel.contains(POPULATE_REL_SUFFIX) && (uriParameters == null || !uriParameters.containsKey(param))) {
-                        linkTemplate.queryParam(param, value);
+                        uriBuilder.queryParam(param, value);
                     }
                 } else if(uriParameters == null || !uriParameters.containsKey(param)) { //Add query param only if it's not already present in the path
-                    linkTemplate.queryParam(param, value);
+                    uriBuilder.queryParam(param, value);
                 }
             }
         }
         // Links in the transition properties are already encoded so
         // build the href using encoded map.
-        URI href = linkTemplate.buildFromEncodedMap(linkPropertiesMap);
+        URI href = uriBuilder.buildFromEncodedMap(linkPropertiesMap);
 
         Transition resolvedTransition = rebuildTransitionWithResolvedTarget(targetState);
         return buildLink(resolvedTransition, linkProperties, entity, rel, href, method);
     }
 
-    private Link createLinkForResource(UriBuilder linkTemplate, LinkProperties linkProperties, ResourceState targetState, MultivaluedMap<String, String> queryParameters, Object entity) {
+    private Link createLinkForResource(UriBuilder uriBuilder, LinkProperties linkProperties, ResourceState targetState, MultivaluedMap<String, String> queryParameters, Object entity) {
         Map<String, Object> encodedLinkPropertiesMap = new HashMap<String, Object>();
         for (String key : linkProperties.getTransitionProperties().keySet()) {
         	Object value = linkProperties.getTransitionProperties().get(key);
@@ -252,22 +257,22 @@ public class LinkGeneratorImpl implements LinkGenerator {
         }
 
         String targetPath = targetState.getPath();
-        linkTemplate.path(targetPath);
-        configureLink(linkTemplate, encodedLinkPropertiesMap, targetPath);
+        uriBuilder.path(targetPath);
+        configureLink(uriBuilder, linkProperties.getTransitionProperties(), targetPath);
         String rel = getTargetRelValue(targetState);
 
         // Pass any query parameters
-        addQueryParams(queryParameters, allQueryParameters, linkTemplate, targetState.getPath(), transition.getCommand().getUriParameters());
+        addQueryParams(queryParameters, allQueryParameters, uriBuilder, targetState.getPath(), transition.getCommand().getUriParameters());
 
         // Build href from template
         URI href;
         if (entity != null && resourceStateMachine.getTransformer() == null) {
             logger.debug("Building link with entity (No Transformer) [" + entity + "] [" + transition + "]");
-            href = linkTemplate.build(entity);
+            href = uriBuilder.build(entity);
         } else {
             // Links in the transition properties are already encoded so
             // build the href using encoded map.
-            href = linkTemplate.buildFromEncodedMap(encodedLinkPropertiesMap);
+            href = uriBuilder.buildFromEncodedMap(encodedLinkPropertiesMap);
         }
 
         return buildLink(transition, linkProperties, entity, rel, href, transition.getCommand().getMethod());
